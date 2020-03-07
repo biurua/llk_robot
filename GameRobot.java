@@ -85,6 +85,9 @@ public class GameRobot {
 				}
 				numberOfSquaresNotEliminated++;
 				Square square = new Square(colorAndNumber);
+				System.out.print(Arrays.toString(square.rgbAverageValue));
+				
+				
 				//用于调试
 //				if(x==6&&y==1) {
 //					squareTemp1=square;
@@ -93,8 +96,13 @@ public class GameRobot {
 //					squareTemp2=square;
 //				}
 //				if(squareTemp1!=null&&squareTemp2!=null) {
+//					System.out.println();
+//					System.out.println(Arrays.toString(squareTemp1.rgbAverageValue));
+//					System.out.println(Arrays.toString(squareTemp2.rgbAverageValue));
 //					System.out.println(squareTemp1.equals(squareTemp2));
+//					System.out.println(squareTemp2.equals(squareTemp1));
 //					squareTemp1=null;
+//					System.exit(0);
 //				}
 				for(int i=0,size=allDifferentSquares.size();i<size;i++) {
 					if(allDifferentSquares.get(i).equals(square)) {
@@ -107,6 +115,7 @@ public class GameRobot {
 				model[y][x]=allDifferentSquares.size()-1;
 				iconAndNumber.put(allDifferentSquares.size()-1, 1);
 			}
+			System.out.println();
 		}
 		long endTimeOfIconRecognition = System.currentTimeMillis();
 		System.out.println("图标识别完成，耗时"+(endTimeOfIconRecognition-startTimeOfIconRecognition)/1000+"秒");
@@ -138,11 +147,11 @@ public class GameRobot {
 			System.out.println("存在数量为奇数的图标");
 			return;
 		}
-		long startTimeOfConnectionStepCalculationStart = System.currentTimeMillis();
+		long startTimeOfConnectionStepCalculation = System.currentTimeMillis();
 		// TODO 宠物连连看有生命限制，应使用[getMoreConnectionStepList]方法
-		List<int[]> connectionStepList=getMoreConnectionStepList(model);
-		long endTimeOfConnectionStepCalculationStart = System.currentTimeMillis();
-		System.out.println("连接步骤计算完成，耗时"+(endTimeOfConnectionStepCalculationStart-startTimeOfConnectionStepCalculationStart)/1000+"秒，一共有"
+		List<int[]> connectionStepList=getConnectionStepList(model);
+		long endTimeOfConnectionStepCalculation = System.currentTimeMillis();
+		System.out.println("连接步骤计算完成，耗时"+(endTimeOfConnectionStepCalculation-startTimeOfConnectionStepCalculation)/1000+"秒，一共有"
 									+connectionStepList.size()+"步连接操作，程序将在5秒后自动执行游戏，请切换到游戏界面...");
 		Thread.sleep(5000);
 		
@@ -234,7 +243,7 @@ public class GameRobot {
 				return;
 			}
 			// TODO 宠物连连看有生命限制，应使用[getMoreConnectionStepList]方法
-			connectionStepList=getMoreConnectionStepList(model);
+			connectionStepList=getConnectionStepList(model);
         }
         System.out.println("程序执行完毕");
 	}
@@ -858,12 +867,12 @@ public class GameRobot {
 			return false;
 		}
 		//坐标1就是父亲，被走过的坐标就是父亲走过的路，合格的儿子不能站在父亲走过的路上
-		List<int[]> canMoveTOCoordinates = getCanMoveToCoordinates(newModel, passedCoordinates, coordinate1,coordinate1IsOriginalStartPoint);
+		List<int[]> canMoveToCoordinates = getCanMoveToCoordinates(newModel, passedCoordinates, coordinate1,coordinate1IsOriginalStartPoint);
 //		System.out.print(Arrays.toString(coordinate1)+":");
-//		canMoveTOCoordinates.forEach(arr->System.out.print(Arrays.toString(arr)));
+//		canMoveToCoordinates.forEach(arr->System.out.print(Arrays.toString(arr)));
 //		System.out.println();
-		for(int i=0;i<canMoveTOCoordinates.size();i++) {
-			int[] arr=canMoveTOCoordinates.get(i);
+		for(int i=0;i<canMoveToCoordinates.size();i++) {
+			int[] arr=canMoveToCoordinates.get(i);
 			if(turnTimes+(lastDirection==0||arr[2]==lastDirection?0:1)<3&&arr[0]==coordinate2[0]&&arr[1]==coordinate2[1]) {
 //				System.out.println(Arrays.toString(arr)+"转弯次数"+(turnTimes+(lastDirection==0||arr[2]==lastDirection?0:1)));
 //				System.out.println();
@@ -871,8 +880,8 @@ public class GameRobot {
 			}
 		}
 		boolean result=false;
-		for(int i=0;i<canMoveTOCoordinates.size();i++) {
-			int[] arr=canMoveTOCoordinates.get(i);
+		for(int i=0;i<canMoveToCoordinates.size();i++) {
+			int[] arr=canMoveToCoordinates.get(i);
 			Set<String> passedCoordinates2=new HashSet<>(passedCoordinates);
 			passedCoordinates2.add(arr[0]+","+arr[1]);
 			result|=canConnect(newModel, passedCoordinates2, arr, coordinate2,arr[2],turnTimes+(lastDirection==0||arr[2]==lastDirection?0:1),false);
@@ -916,6 +925,7 @@ public class GameRobot {
 		List<int[]> colorAndNumber=new ArrayList<>();
 		//格子的总像素数
 		int totalPixelNumber=0;
+		int[] rgbAverageValue= {0,0,0};
 		public Square(Map<Integer,Integer> colorNumber) {
 			colorNumber.forEach((k,v)->{
 				int colorR = ((k&0xff0000)>>16);
@@ -924,10 +934,32 @@ public class GameRobot {
 				totalPixelNumber+=v;
 				colorAndNumber.add(new int[] {colorR,colorG,colorB,v});
 			});
+			int[] colorSumAndPixelNumberOfCurrentSquare= {0,0,0,0};
+			colorAndNumber.forEach(arr->{
+				colorSumAndPixelNumberOfCurrentSquare[0]+=(arr[0]*arr[3]);
+				colorSumAndPixelNumberOfCurrentSquare[1]+=(arr[1]*arr[3]);
+				colorSumAndPixelNumberOfCurrentSquare[2]+=(arr[2]*arr[3]);
+				colorSumAndPixelNumberOfCurrentSquare[3]+=arr[3];
+			});
+			rgbAverageValue[0]=colorSumAndPixelNumberOfCurrentSquare[0]/colorSumAndPixelNumberOfCurrentSquare[3];
+			rgbAverageValue[1]=colorSumAndPixelNumberOfCurrentSquare[1]/colorSumAndPixelNumberOfCurrentSquare[3];
+			rgbAverageValue[2]=colorSumAndPixelNumberOfCurrentSquare[2]/colorSumAndPixelNumberOfCurrentSquare[3];
 		}
 		@Override
 		public boolean equals(Object obj) {
 			Square gz=(Square)obj;
+			//如果两个格子的rgb均值高度匹配，可认为它们相同
+			if(Math.abs(rgbAverageValue[0]-gz.rgbAverageValue[0])<2&&Math.abs(rgbAverageValue[1]-gz.rgbAverageValue[1])<2
+					&&Math.abs(rgbAverageValue[2]-gz.rgbAverageValue[2])<2) {
+				return true;
+			}
+			//尽早结束不同图标的比较可以提升速度
+			//如果两个格子的rgb均值高度不匹配，可认为它们必然不相同
+			if(Math.abs(rgbAverageValue[0]-gz.rgbAverageValue[0])>20||Math.abs(rgbAverageValue[1]-gz.rgbAverageValue[1])>20
+					||Math.abs(rgbAverageValue[2]-gz.rgbAverageValue[2])>20) {
+				return false;
+			}
+			
 			List<int[]> colorList1=new ArrayList<>();
 			List<int[]> colorList2=new ArrayList<>();
 			colorAndNumber.forEach(arr->colorList1.add(new int[] {arr[0],arr[1],arr[2],arr[3]}));
@@ -970,7 +1002,7 @@ public class GameRobot {
 				 */
 				//在精确匹配时只能处理掉不到4%的细碎颜色（数量少于10的颜色），可认为是不相同的图标
 				// TODO 宠物连连看使用0.26，果蔬连连看使用0.03
-				if(allowableOffset==1&&(matchNumberOfRareColor*2.0/totalPixelsNumberOfTwoSquares)<0.26) {
+				if(allowableOffset==1&&(matchNumberOfRareColor*2.0/totalPixelsNumberOfTwoSquares)<0.03) {
 					return false;
 				}
 				/*
@@ -1126,6 +1158,8 @@ public class GameRobot {
 		}
 		return squaresStartAndEndPointsInTheColumn;
 	}
+	
+	
 	/**
 	 * 判断给定像素集是否是分割线，有理由相信一条分割线的中间80%的颜色是近似的
 	 */
