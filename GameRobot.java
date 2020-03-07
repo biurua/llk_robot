@@ -46,9 +46,9 @@ public class GameRobot {
 		BufferedImage bimg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 		bimg.getGraphics().drawImage(img, 0, 0, null);
 		//一行的每个格子的起止
-		List<int[]> squaresInTheRow = getSquaresStartAndEndPointsInTheRow(bimg,getTheRowPixelList(bimg, 100));
+		List<int[]> squaresInTheRow = getSquaresStartAndEndPointsInTheRow2(bimg);
 		//一列的每个格子的起止
-		List<int[]> squaresInTheColumn = getSquaresStartAndEndPointsInTheColumn(bimg,getTheColumnPixelList(bimg, 100));
+		List<int[]> squaresInTheColumn = getSquaresStartAndEndPointsInTheColumn2(bimg);
 		System.out.println("游戏界面有"+squaresInTheColumn.size()+"行"+squaresInTheRow.size()+"列格子");
 		//显示界面的分割信息，用于调试
 //		show(bimg,squaresInTheRow,squaresInTheColumn);
@@ -1159,7 +1159,142 @@ public class GameRobot {
 		return squaresStartAndEndPointsInTheColumn;
 	}
 	
-	
+	/**
+	 * new:获取横向每一格的起点和终点
+	 */
+	static List<int[]> getSquaresStartAndEndPointsInTheRow2(BufferedImage bimg) {
+		int width=bimg.getWidth();
+		List<int[]> squaresStartAndEndPointsInTheRow=new ArrayList<>();
+		//去掉左右两边各20%的部分，分析中间每条竖线的像素变化数，像素变化数最少的都是分割线
+		int leastNumberOfColumnsColorChanges=Integer.MAX_VALUE;
+		for(int i=(int)(width*0.2),len=width-i;i<len;i++) {
+			int[] numberOfColorChangesForCurrentColumn= {0};
+			int[] preColorOfCurrentColumn= {-10,-10,-10};
+			getTheColumnPixelList(bimg, i).forEach(rgb->{
+				int colorR = ((rgb&0xff0000)>>16);
+				int colorG = ((rgb&0xff00)>>8);
+				int colorB = rgb&0xff;
+				//如果一个颜色相比于上一个颜色，r、g、b中有一个的变化超过4，则认为颜色改变了
+				if(Math.abs(colorR-preColorOfCurrentColumn[0])>4||Math.abs(colorG-preColorOfCurrentColumn[1])>4||
+						Math.abs(colorB-preColorOfCurrentColumn[2])>4) {
+					numberOfColorChangesForCurrentColumn[0]++;
+				}
+				preColorOfCurrentColumn[0]=colorR;
+				preColorOfCurrentColumn[1]=colorG;
+				preColorOfCurrentColumn[2]=colorB;
+			});
+//			System.out.print(numberOfColorChangesForCurrentColumn[0]+(numberOfColorChangesForCurrentColumn[0]<100?" ":"")+"-");
+			//如果当前列几乎只有一种颜色，它可能是偶然产生的间隔，不具备参考性
+			if(numberOfColorChangesForCurrentColumn[0]<5) continue;
+			leastNumberOfColumnsColorChanges=Math.min(leastNumberOfColumnsColorChanges, numberOfColorChangesForCurrentColumn[0]);
+		}
+		int previousSplitLineAbscissa=0;
+		System.out.println("每一列的颜色丰富度");
+		//已知分割线的颜色变化数，接下来遍历每一列，颜色变化数匹配的就是分割线了
+		for(int i=0,len=width;i<len;i++) {
+			int[] numberOfColorChangesForCurrentColumn= {0};
+			int[] preColorOfCurrentColumn= {-10,-10,-10};
+			getTheColumnPixelList(bimg, i).forEach(rgb->{
+				int colorR = ((rgb&0xff0000)>>16);
+				int colorG = ((rgb&0xff00)>>8);
+				int colorB = rgb&0xff;
+				if(Math.abs(colorR-preColorOfCurrentColumn[0])>4||Math.abs(colorG-preColorOfCurrentColumn[1])>4||
+						Math.abs(colorB-preColorOfCurrentColumn[2])>4) {
+					numberOfColorChangesForCurrentColumn[0]++;
+				}
+				preColorOfCurrentColumn[0]=colorR;
+				preColorOfCurrentColumn[1]=colorG;
+				preColorOfCurrentColumn[2]=colorB;
+			});
+			System.out.print(numberOfColorChangesForCurrentColumn[0]+(numberOfColorChangesForCurrentColumn[0]<100?".":"")+" ");
+			//如果当前列的颜色足够纯粹，可认为是分割线
+			if(numberOfColorChangesForCurrentColumn[0]<leastNumberOfColumnsColorChanges+50) {
+				//记录第一条分割线的位置
+				if(previousSplitLineAbscissa==0) {
+					previousSplitLineAbscissa=i;
+					continue;
+				}
+				//如果当前分割线与上一条分割线的距离超过20像素，则认为两条分割线界定出一个格子
+				if(i-previousSplitLineAbscissa>20) {
+					squaresStartAndEndPointsInTheRow.add(new int[] {previousSplitLineAbscissa+1,i-1});
+//					System.out.println(richnessOfColorOfPreSplitLine+"->"+numberOfColorChangesForCurrentColumn[0]);
+				}
+				previousSplitLineAbscissa=i;
+			}
+		}
+//		squaresStartAndEndPointsInTheRow.forEach(arr->System.out.print("["+arr[0]+"-"+(arr[1]-arr[0])+"-"+arr[1]+"]"));
+		System.out.println();
+		System.out.println("横向切割结果="+squaresStartAndEndPointsInTheRow.size());
+		return squaresStartAndEndPointsInTheRow;
+	}
+	/**
+	 * new:获取纵向每一格的起点和终点
+	 */
+	static List<int[]> getSquaresStartAndEndPointsInTheColumn2(BufferedImage bimg) {
+		int height=bimg.getHeight();
+		List<int[]> squaresStartAndEndPointsInTheColumn=new ArrayList<>();
+		//去掉左右两边各20%的部分，分析中间每条竖线的像素变化数，像素变化数最少的都是分割线
+		int leastNumberOfRowsColorChanges=Integer.MAX_VALUE;
+		for(int i=(int)(height*0.2),len=height-i;i<len;i++) {
+			int[] numberOfColorChangesForCurrentRow= {0};
+			int[] preColorOfCurrentRow= {-10,-10,-10};
+			getTheRowPixelList(bimg, i).forEach(rgb->{
+				int colorR = ((rgb&0xff0000)>>16);
+				int colorG = ((rgb&0xff00)>>8);
+				int colorB = rgb&0xff;
+				//如果一个颜色相比于上一个颜色，r、g、b中有一个的变化超过4，则认为颜色改变了
+				if(Math.abs(colorR-preColorOfCurrentRow[0])>4||Math.abs(colorG-preColorOfCurrentRow[1])>4||
+						Math.abs(colorB-preColorOfCurrentRow[2])>4) {
+					numberOfColorChangesForCurrentRow[0]++;
+				}
+				preColorOfCurrentRow[0]=colorR;
+				preColorOfCurrentRow[1]=colorG;
+				preColorOfCurrentRow[2]=colorB;
+			});
+//			System.out.print(numberOfColorChangesForCurrentColumn[0]+(numberOfColorChangesForCurrentColumn[0]<100?" ":"")+"-");
+			//如果当前行几乎只有一种颜色，它可能是偶然产生的间隔，不具备参考性
+			if(numberOfColorChangesForCurrentRow[0]<5) continue;
+			leastNumberOfRowsColorChanges=Math.min(leastNumberOfRowsColorChanges, numberOfColorChangesForCurrentRow[0]);
+		}
+		int previousSplitLineOrdinate=0;
+		System.out.println("每一行的颜色丰富度");
+		//已知分割线的颜色变化数，接下来遍历每一行，颜色变化数匹配的就是分割线了
+		for(int i=0,len=height;i<len;i++) {
+			int[] numberOfColorChangesForCurrentRow= {0};
+			int[] preColorOfCurrentRow= {-10,-10,-10};
+			getTheRowPixelList(bimg, i).forEach(rgb->{
+				int colorR = ((rgb&0xff0000)>>16);
+				int colorG = ((rgb&0xff00)>>8);
+				int colorB = rgb&0xff;
+				if(Math.abs(colorR-preColorOfCurrentRow[0])>4||Math.abs(colorG-preColorOfCurrentRow[1])>4||
+						Math.abs(colorB-preColorOfCurrentRow[2])>4) {
+					numberOfColorChangesForCurrentRow[0]++;
+				}
+				preColorOfCurrentRow[0]=colorR;
+				preColorOfCurrentRow[1]=colorG;
+				preColorOfCurrentRow[2]=colorB;
+			});
+			System.out.print(numberOfColorChangesForCurrentRow[0]+(numberOfColorChangesForCurrentRow[0]<100?".":"")+" ");
+			//如果当前列的颜色足够纯粹，可认为是分割线
+			if(numberOfColorChangesForCurrentRow[0]<leastNumberOfRowsColorChanges+50) {
+				//记录第一条分割线的位置
+				if(previousSplitLineOrdinate==0) {
+					previousSplitLineOrdinate=i;
+					continue;
+				}
+				//如果当前分割线与上一条分割线的距离超过20像素，则认为两条分割线界定出一个格子
+				if(i-previousSplitLineOrdinate>20) {
+					squaresStartAndEndPointsInTheColumn.add(new int[] {previousSplitLineOrdinate+1,i-1});
+//					System.out.println(richnessOfColorOfPreSplitLine+"->"+numberOfColorChangesForCurrentRow[0]);
+				}
+				previousSplitLineOrdinate=i;
+			}
+		}
+//		squaresStartAndEndPointsInTheColumn.forEach(arr->System.out.print("["+arr[0]+"-"+(arr[1]-arr[0])+"-"+arr[1]+"]"));
+		System.out.println();
+		System.out.println("纵向切割结果="+squaresStartAndEndPointsInTheColumn.size());
+		return squaresStartAndEndPointsInTheColumn;
+	}
 	/**
 	 * 判断给定像素集是否是分割线，有理由相信一条分割线的中间80%的颜色是近似的
 	 */
